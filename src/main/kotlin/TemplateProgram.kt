@@ -1,12 +1,9 @@
 import org.openrndr.application
 import org.openrndr.color.ColorRGBa
 import org.openrndr.draw.DepthTestPass
-import org.openrndr.draw.rectangleBatch
-import org.openrndr.extra.olive.oliveProgram
-import org.openrndr.extra.shadestyles.LinearGradient
+import org.openrndr.draw.isolated
 import org.openrndr.extra.shadestyles.linearGradient
 import org.openrndr.extras.color.presets.*
-import org.openrndr.math.Polar
 import org.openrndr.math.Vector2
 import org.openrndr.math.Vector3
 import org.openrndr.shape.Rectangle
@@ -20,134 +17,119 @@ fun main() = application {
         height = 1080
 
     }
-    oliveProgram {
+//    oliveProgram {
+    program {
+        val piFrac = PI/3.0
+
+        val stripes = 25
+        val stripeHeight = 8.0
+        val colorOuter = ColorRGBa(0.5, 0.0, 0.0)
+        val colorInner = ColorRGBa(0.8, 0.0, 0.0)
+
+        val bgApothem = 700.0
+        val bgRectHeight = 600.0
+        val bgRectWidth = bgApothem/0.866
+
+        fun drawFloor(floorHeight: Double, color: ColorRGBa) {
+            drawer.isolated {
+                translate(0.0, floorHeight)
+                rotate(Vector3(1.0, 0.0, 0.0), 90.0)
+                fill = color
+                rectangle(Rectangle.fromCenter(Vector2.ZERO, 2000.0, 2000.0))
+            }
+        }
+        fun drawBgSide(side: String): Unit {
+            var rotation = -20.0
+            var color1 = ColorRGBa.DARK_SLATE_BLUE
+            var color2 = ColorRGBa.MIDNIGHT_BLUE
+            var yTrans = 300.0
+
+            if (side === "bottom") {
+                rotation = 20.0
+                color1 = ColorRGBa.GREEN
+                color2 = ColorRGBa.DARK_SLATE_BLUE
+                yTrans = -300.0
+            }
+
+            for(num in 0 until 6) {
+                val offset = piFrac * num
+                val tempo = seconds * 0.1
+                val apothem = 600.0
+                drawer.isolated {
+                    shadeStyle = linearGradient(color1, color2, rotation = 0.0)
+                    translate(
+                        (sin(tempo + offset)) * apothem,
+                        yTrans,
+                        sin(tempo + (0.5 * PI) + offset) * apothem)
+                    rotate(
+                        Vector3(0.0, 1.0, 0.0),
+                        tempo * (360.0/(2.0* PI)) + (360.0 * (num/6.0))
+                    )
+                    rotate(Vector3(1.0, 0.0, 0.0), rotation)
+                    rectangle(Rectangle.fromCenter(Vector2.ZERO, bgRectWidth, bgRectHeight))
+                }
+            }
+        }
         extend {
-            fun setup() {
-                drawer.translate(0.0, 0.0, -600.0)
-                drawer.depthWrite = true
-                drawer.strokeWeight = 0.0
-                drawer.stroke = ColorRGBa.TRANSPARENT
-                drawer.depthTestPass = DepthTestPass.LESS_OR_EQUAL
-                drawer.perspective(90.0, 16.0/9.0, 1.0, -300.0)
+            drawer.apply {
+                depthWrite = true
+                strokeWeight = 0.0
+                stroke = ColorRGBa.TRANSPARENT
+                depthTestPass = DepthTestPass.LESS_OR_EQUAL
+                perspective(90.0, 16.0/9.0, 1.0, -300.0)
+                translate(0.0, 0.0, -600.0)
             }
-            fun prepHexagonSideDrawer(
-                num: Int,
-                apothem: Double,
-                tempo: Double,
-                yTrans: Double,
-                color: ColorRGBa = ColorRGBa.WHITE,
-                gradient: LinearGradient? = null
-            ) {
-                setup()
-                drawer.fill = color
-                drawer.shadeStyle = gradient
-                val offset = (PI/3.0) * num
-                drawer.translate(
-                    (sin(tempo + offset)) * apothem,
-                    yTrans,
-                    sin(tempo + (0.5 * PI) + offset) * apothem)
-                drawer.rotate(
-                    Vector3(0.0, 1.0, 0.0),
-                    tempo * (360.0/(2.0* PI)) + (360.0 * (num/6.0))
-                )
-            }
-            fun drawRect(rectHeight: Double, rectWidth: Double) {
-                drawer.rectangle(
-                    -(rectWidth/2.0),
-                    -(rectHeight/2.0),
-                    rectWidth,
-                    rectHeight
-                )
-            }
+            for (numOuter in 1 until stripes - 1) {
+                val tempo = sin(seconds * 0.5 + (numOuter / 23.5))
+                val yTrans = (sin(2.0 * seconds + (numOuter / 23.5)) * 8) + numOuter * 20.0 - 240.0
 
-            val stripes = 25
-            repeat (stripes) { numOuter ->
-                if ( numOuter != 0 && numOuter != 24 ) {
-                    val apothem = (stripes / 2 - abs(numOuter - (stripes / 2))) * 10.0
-                    val rectHeight = 8.0
-                    val tempo = sin(seconds * 0.5 + (numOuter / 23.5))
-                    val yTrans = (sin(2.0 * seconds + (numOuter / 23.5)) * 8) + numOuter * 20.0 - 240.0
+                val apothemOuter = (stripes / 2 - abs(numOuter - (stripes / 2))) * 10.0
+                val apothemInner = apothemOuter - 0.5
+                val rectWidthOuter = apothemOuter/0.866
+                val rectWidthInner = apothemInner/0.866
+                val rectOuter = Rectangle.fromCenter(Vector2.ZERO, rectWidthOuter, stripeHeight)
+                val rectInner = Rectangle.fromCenter(Vector2.ZERO, rectWidthInner, stripeHeight)
 
-                    repeat(6) { num ->
-                        prepHexagonSideDrawer(
-                            num,
-                            apothem,
-                            tempo,
+                for (num in 0 until 6) {
+                    val offset = piFrac * num
+                    val rotation = tempo * (360.0/(2.0* PI)) + (360.0 * (num/6.0))
+                    val zTransBase = sin(tempo + offset  + (0.5 * PI))
+                    val xTransBase = sin(tempo + offset)
+
+                    drawer.isolated {
+                        fill = colorOuter
+                        translate(
+                            xTransBase * apothemOuter,
                             yTrans,
-                            ColorRGBa(0.5, 0.0, 0.0),
+                            zTransBase * apothemOuter
                         )
-                        val rectWidth = apothem / 0.866
-                        drawRect(rectHeight, rectWidth)
-                        drawer.defaults()
+                        rotate(Vector3.UNIT_Y, rotation)
+                        rectangle(rectOuter)
                     }
-                    drawer.rectangles {
-                        repeat(6) { num ->
-                            prepHexagonSideDrawer(
-                                num,
-                                apothem - 0.5,
-                                tempo,
-                                yTrans,
-                                ColorRGBa(0.8, 0.0, 0.0),
-                            )
-                            val rectWidthInner = (apothem-0.5)/0.866
-                            val pos = Vector2(width/2.0, height/2.0 + yTrans)
-                            val rect = Rectangle.fromCenter(pos, width = rectWidthInner, height = rectHeight)
-                            drawRect(rectHeight, rectWidthInner)
-//                            rectangle(rect, 0.0) // add rect to the batch
-                            drawer.defaults()
-                        }
+                    drawer.isolated {
+                        fill = colorInner
+                        translate(
+                            xTransBase * apothemInner,
+                            yTrans,
+                            zTransBase * apothemInner
+                        )
+                        rotate(Vector3.UNIT_Y, rotation)
+                        rectangle(rectInner)
                     }
-                    drawer.defaults()
                 }
             }
 
-            fun drawFloor(floorHeight: Double, color: ColorRGBa) {
-                setup()
-                drawer.translate(0.0, floorHeight)
-                drawer.rotate(Vector3(1.0, 0.0, 0.0), 90.0)
-                drawer.fill = color
-                drawRect(2000.0, 2000.0)
-                drawer.defaults()
-            }
             drawFloor(600.0, ColorRGBa.MIDNIGHT_BLUE)
             drawFloor(-600.0, ColorRGBa.GREEN)
 
-            setup()
-            drawer.translate(0.0, 0.0, -800.0)
-            drawer.fill = ColorRGBa.DARK_SLATE_BLUE
-            drawRect(200.0, 6000.0)
-            drawer.defaults()
-
-            val apothem = 700.0
-            val rectHeight = 600.0
-            repeat(6) {num ->
-                prepHexagonSideDrawer(
-                    num,
-                    600.0,
-                    seconds * 0.1,
-                    300.0,
-                    gradient = linearGradient(ColorRGBa.DARK_SLATE_BLUE, ColorRGBa.MIDNIGHT_BLUE, rotation = 0.0)
-                )
-                drawer.rotate(Vector3(1.0, 0.0, 0.0), -20.0)
-
-                val rectWidth = apothem/0.866
-                drawRect(rectHeight, rectWidth)
-                drawer.defaults()
+            drawer.isolated {
+                translate(0.0, 0.0, -800.0)
+                fill = ColorRGBa.DARK_SLATE_BLUE
+                rectangle(Rectangle.fromCenter(Vector2.ZERO, 6000.0, 200.0))
             }
-            repeat(6) {num ->
-                prepHexagonSideDrawer(
-                    num,
-                    600.0,
-                    seconds * 0.1,
-                    -300.0,
-                    gradient = linearGradient(ColorRGBa.DARK_SLATE_BLUE, ColorRGBa.GREEN, rotation = 180.0)
-                )
-                drawer.rotate(Vector3(1.0, 0.0, 0.0), 20.0)
-                val rectWidth = apothem/0.866
-                drawRect(rectHeight, rectWidth)
 
-                drawer.defaults()
-            }
+            drawBgSide("top")
+            drawBgSide("bottom")
         }
     }
 }
