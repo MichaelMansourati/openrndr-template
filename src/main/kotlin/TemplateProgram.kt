@@ -13,8 +13,8 @@ import kotlin.math.sin
 
 fun main() = application {
     configure {
-        width = 1920
-        height = 1080
+        width = 1280
+        height = 720
 
     }
 //    oliveProgram {
